@@ -7,6 +7,7 @@
 #   evaluate it on a predefined test set, compare predictions with three
 #   pan-mammalian clocks, and assess transferability across tissue types.
 #
+# RUN FROM THE R PROJECT ROOT (WoodMouseEpigeneticClock/)
 # INPUTS
 #   Data/Processed Data/beta_pheno_anno.Rdata  (object: joined2mcpg)
 #   Data/PanMamManifest_Aligned_ASylvaticus.csv
@@ -18,6 +19,7 @@
 #   Data/Processed Data/WMClock_cpg_coefficients.Rdata
 #   Data/Processed Data/WMClock_cpg_coefficients.csv
 #   Data/Processed Data/WMClock_fitted_model.rds (optional reusable glmnet fit)
+#   Data/Processed Data/WMClock_Figure1_plots.rds (Figure 1A-C plot objects)
 #   Results/02_WMClock_ClockCreation/Tables/  (sample summary, 4-sheet XLSX)
 #   Results/02_WMClock_ClockCreation/Figures/ (original-style PDF figures)
 #
@@ -27,7 +29,9 @@
 #   * Alpha and lambda are selected using leave-one-sample-out cross-validation
 #     by minimising cross-validated mean squared prediction error.
 #   * Training-fit error is IN-SAMPLE; test accuracy is the validation metric.
+#   * Figure 1A-C, Figure S1 and Figure S2 are generated here; S3 is not.
 #   * Pan-mammalian clocks use available CpGs and their published transforms.
+#   * Tissue comparisons are exploratory applications of the ear-trained clock.
 ################################################################################
 
 # ---- 1. Packages and project paths -------------------------------------------
@@ -205,6 +209,9 @@ performance <- function(data, predicted_col, label) {
                cor(x, y) else NA_real_)
 }
 
+# Reproduce the manuscript-style panels: white background with gridlines,
+# open jittered circles, solid black regression line and dashed identity line.
+# Only the annotation values are computed automatically from each plot's data.
 clock_plot <- function(data, predicted_col, label = NULL,
                        x_limits = c(50, 400), y_limits = c(50, 400),
                        y_breaks = seq(100, 400, 100), annotation_y = 400) {
@@ -449,6 +456,21 @@ if (nrow(tdata)) {
 } else {
   warning("No rows with Batch == 'Horvath'; tissue-transfer analysis skipped.")
 }
+
+
+# ---- 9. Save Figure 1A-C plot objects for assembly with EWAS/GREAT panels -----
+# Save native ggplot objects, not screenshots or exported PDF pages. This allows
+# Script 03 to assemble the complete manuscript figure directly with ggarrange()
+# and export all panels as editable-resolution vector graphics in one PDF.
+# The plots retain the data, themes, annotations, and layer settings defined above.
+figure1_clock_plots <- list(
+  All_graph = All_graph,             # Panel A: training-set clock performance
+  TestAll = TestAll,                 # Panel B: held-out test-set performance
+  PanOnly_Graph2 = PanOnly_Graph2    # Panel C: pan-mammalian clock 2
+)
+figure1_plot_file <- file.path(processed_dir, "WMClock_Figure1_plots.rds")
+saveRDS(figure1_clock_plots, figure1_plot_file)
+message("Saved reusable Figure 1A-C ggplot objects to: ", figure1_plot_file)
 
 message("Clock creation and validation completed.\n",
         "Coefficients: ", processed_dir, "\n",
